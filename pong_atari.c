@@ -40,7 +40,7 @@ void draw_paddle_segment(unsigned int x, unsigned int y)
 void draw_ball(unsigned int x, unsigned int y)
 {
 	gotoxy(x, y);
-	cprintf("O");
+	cputc('O');
 }
 
 void erase_pixel(unsigned int x, unsigned int y)
@@ -101,10 +101,10 @@ void update_paddle_positions(unsigned int* l_paddle, unsigned int* r_paddle)
 	switch (last_key)
 	{
 		case L_PADDLE_UP:
-			if (*l_paddle > 0) (*l_paddle)--;
+			if (*l_paddle > 0) (*l_paddle) -= 2;
 			break;
 	    case L_PADDLE_DOWN:
-	    	if (*l_paddle < CONSOLE_HEIGHT - PADDLE_LENGTH) (*l_paddle)++;
+	    	if (*l_paddle < CONSOLE_HEIGHT - PADDLE_LENGTH) (*l_paddle) += 2;
 	    	break;
 	}
 
@@ -113,10 +113,10 @@ void update_paddle_positions(unsigned int* l_paddle, unsigned int* r_paddle)
 	switch (last_key)
 	{
 		case R_PADDLE_UP:
-			if (*r_paddle > 0) (*r_paddle)--;
+			if (*r_paddle > 0) (*r_paddle) -= 2;
 			break;
 		case R_PADDLE_DOWN:
-			if (*r_paddle < CONSOLE_HEIGHT - PADDLE_LENGTH) (*r_paddle)++;
+			if (*r_paddle < CONSOLE_HEIGHT - PADDLE_LENGTH) (*r_paddle) += 2;
 			break;
 	}
 
@@ -254,7 +254,7 @@ int main(void)
     cprintf("\rPlayer 1: %s\r\n", player_one);
 
     cprintf("Enter player two: "); cgets(player_two, 25);
-    cprintf("\rPlayer 2s: %s\r\n", player_two);
+    cprintf("\rPlayer 2: %s\r\n", player_two);
 
     sleep(3);
 
@@ -280,17 +280,16 @@ int main(void)
 
     while (game_running)
     {
+    	wait_vblank();
+
     	if (player_one_score >= MAX_POINTS || player_two_score >= MAX_POINTS)
     		game_running = false;
 
     	update_paddle_positions(&left_paddle_y, &right_paddle_y);
     	if (left_paddle_y != prev_left_y || right_paddle_y != prev_right_y)
     	{
-    		wait_vblank();
-
     	    erase_paddles(prev_left_y, prev_right_y);
     	    draw_paddles(left_paddle_y, right_paddle_y);
-
     	    prev_left_y = left_paddle_y;
     	    prev_right_y = right_paddle_y;
     	}
@@ -302,11 +301,8 @@ int main(void)
 
     	if (ball.x != prev_ball_x || ball.y != prev_ball_y)
     	{
-    		wait_vblank();
-
     		erase_pixel(prev_ball_x, prev_ball_y);
     		draw_ball(ball.x, ball.y);
-
     		prev_ball_x = ball.x;
     		prev_ball_y = ball.y;
     	}
