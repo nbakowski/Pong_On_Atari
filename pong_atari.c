@@ -2,12 +2,13 @@
 #include <atari.h>
 #include <string.h>
 #include <peekpoke.h>
+#include <unistd.h>
 
 #define CLS clrscr()
 #define CONSOLE_WIDTH 40
 #define CONSOLE_HEIGHT 24
 #define PADDLE_LENGTH 6
-#define MAX_POINTS 5
+#define MAX_POINTS 10
 
 #define true 1
 #define false 0
@@ -148,18 +149,6 @@ void wait_vblank(void)
     while (PEEK(0x14) == t);
 }
 
-void draw_h_line()
-{
-	int i = 0;
-	while (i < CONSOLE_HEIGHT)
-	{
-		gotoxy(CONSOLE_WIDTH / 2 - 1, i);
-		cprintf("%c", 0x7E);
-		gotoxy(CONSOLE_WIDTH / 2, i);
-		cprintf("%c", 0x7F);
-		++i;
-	}
-}
 
 void update_ball_position(struct ball *b)
 {
@@ -186,6 +175,12 @@ void update_ball_position(struct ball *b)
 	}
 }
 
+void reset_ball_position(struct ball *b)
+{
+	b->x = CONSOLE_WIDTH / 2;
+	b->y = CONSOLE_HEIGHT / 2;
+}
+
 void bounce_ball(struct ball *b)
 {
 	if (b->y == 0 || b->y == CONSOLE_HEIGHT - 1)
@@ -197,13 +192,30 @@ void update_score(struct ball *b, unsigned int* p_one_score, unsigned int* p_two
 	if (b->x == 0)
 	{
 		(*p_two_score)++;
-		b->x_dir = (b->x_dir == LEFT) ? RIGHT : LEFT;
+		reset_ball_position(b);
 	}
 	else if (b->x == CONSOLE_WIDTH - 1)
 	{
 		(*p_one_score)++;
-		b->x_dir = (b->x_dir == LEFT) ? RIGHT : LEFT;
+		reset_ball_position(b);
 	}
+}
+
+void announce_winner(char *name)
+{
+	int txt_width = strlen("Player  is the winner") + strlen(name);
+	int l_margin = (CONSOLE_WIDTH - txt_width) / 2;
+
+	chline(CONSOLE_WIDTH);
+	gotox(l_margin);
+	cprintf("Player %s is the winner!\r\n", name);
+	chline(CONSOLE_WIDTH);
+}
+
+void check_paddle_collision(struct ball *b, unsigned int l_p_y, unsigned int r_p_y)
+{
+	if (b->x == 1 && (b->y >= l_p_y && b->y < (l_p_y + PADDLE_LENGTH)) || b->x == CONSOLE_WIDTH - 2 && (b->y >= r_p_y && b->y < (r_p_y + PADDLE_LENGTH)))
+		b->x_dir = (b->x_dir == LEFT) ? RIGHT : LEFT;
 }
 
 int main(void)
@@ -244,6 +256,8 @@ int main(void)
     cprintf("Enter player two: "); cgets(player_two, 25);
     cprintf("\rPlayer 2s: %s\r\n", player_two);
 
+    sleep(3);
+
     render_top_bar(player_one, player_two);
 
     cprintf("\r\n\r\n\r\n");
@@ -260,7 +274,9 @@ int main(void)
     	__asm__("jmp ($e474)");
 
     CLS;
-    draw_h_line();
+
+    left_paddle_y++;
+    right_paddle_y++;
 
     while (game_running)
     {
@@ -281,6 +297,7 @@ int main(void)
 
     	bounce_ball(&ball);
     	update_ball_position(&ball);
+    	check_paddle_collision(&ball, left_paddle_y, right_paddle_y);
     	update_score(&ball, &player_one_score, &player_two_score);
 
     	if (ball.x != prev_ball_x || ball.y != prev_ball_y)
@@ -298,11 +315,17 @@ int main(void)
     CLS;
 
     if (player_one_score > player_two_score)
-    	cprintf("Player %s won with the score of: %d!", player_one, player_one_score);
+    	announce_winner(player_one);
     else
-    	cprintf("Player %s won with the score of: %d!", player_one, player_two_score);
+    	announce_winner(player_two);
 
-    while(1);
+    cprintf("\r\nFinal score:\r\n");
+    cprintf("%s: %d\r\n", player_one, player_one_score);
+    cprintf("%s: %d\r\n", player_two, player_two_score);
+
+    while(1)
+    	if (kbhit())
+        	break;
 
     return 0;
 }
