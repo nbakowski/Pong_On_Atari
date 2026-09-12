@@ -9,6 +9,7 @@
 #define CONSOLE_HEIGHT 24
 #define PADDLE_LENGTH 6
 #define MAX_POINTS 10
+#define PADDLE_MV_DISTANCE 2
 
 #define true 1
 #define false 0
@@ -34,7 +35,7 @@ struct ball
 void draw_paddle_segment(unsigned int x, unsigned int y)
 {
 	gotoxy(x, y);
-	cprintf("|");
+	cputc('|');
 }
 
 void draw_ball(unsigned int x, unsigned int y)
@@ -101,22 +102,16 @@ void update_paddle_positions(unsigned int* l_paddle, unsigned int* r_paddle)
 	switch (last_key)
 	{
 		case L_PADDLE_UP:
-			if (*l_paddle > 0) (*l_paddle) -= 2;
+			if (*l_paddle > 0) (*l_paddle) -= PADDLE_MV_DISTANCE;
 			break;
 	    case L_PADDLE_DOWN:
-	    	if (*l_paddle < CONSOLE_HEIGHT - PADDLE_LENGTH) (*l_paddle) += 2;
+	    	if (*l_paddle < CONSOLE_HEIGHT - PADDLE_LENGTH) (*l_paddle) += PADDLE_MV_DISTANCE;
 	    	break;
-	}
-
-	last_key = OS.ch;
-
-	switch (last_key)
-	{
 		case R_PADDLE_UP:
-			if (*r_paddle > 0) (*r_paddle) -= 2;
+			if (*r_paddle > 0) (*r_paddle) -= PADDLE_MV_DISTANCE;
 			break;
 		case R_PADDLE_DOWN:
-			if (*r_paddle < CONSOLE_HEIGHT - PADDLE_LENGTH) (*r_paddle) += 2;
+			if (*r_paddle < CONSOLE_HEIGHT - PADDLE_LENGTH) (*r_paddle) += PADDLE_MV_DISTANCE;
 			break;
 	}
 
@@ -179,6 +174,7 @@ void reset_ball_position(struct ball *b)
 {
 	b->x = CONSOLE_WIDTH / 2;
 	b->y = CONSOLE_HEIGHT / 2;
+	b->y_dir = (b->y_dir == UP) ? DOWN : UP;
 }
 
 void bounce_ball(struct ball *b)
