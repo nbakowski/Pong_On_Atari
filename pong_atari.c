@@ -7,6 +7,7 @@
 #define CONSOLE_WIDTH 40
 #define CONSOLE_HEIGHT 24
 #define PADDLE_LENGTH 6
+#define MAX_POINTS 5
 
 #define true 1
 #define false 0
@@ -16,10 +17,29 @@
 #define R_PADDLE_UP 8
 #define R_PADDLE_DOWN 0
 
-void draw_pixel(unsigned int x, unsigned int y)
+enum direction
+{
+	LEFT, RIGHT, UP, DOWN
+};
+
+struct ball
+{
+	unsigned int x;
+	unsigned int y;
+	enum direction x_dir;
+	enum direction y_dir;
+};
+
+void draw_paddle_segment(unsigned int x, unsigned int y)
 {
 	gotoxy(x, y);
 	cprintf("|");
+}
+
+void draw_ball(unsigned int x, unsigned int y)
+{
+	gotoxy(x, y);
+	cprintf("O");
 }
 
 void erase_pixel(unsigned int x, unsigned int y)
@@ -43,14 +63,14 @@ void print_game_start()
 
 void render_top_bar(char *n, char *s)
 {
-	int txt_width = strlen("Player: ") + strlen(n) + strlen(s);
+	int txt_width = strlen("Players: ") + strlen(n) + strlen(s);
 	int l_margin = (CONSOLE_WIDTH - txt_width) / 2;
 
 	CLS;
 	chline(CONSOLE_WIDTH);
 
 	gotox(l_margin);
-	cprintf("Player: %s %s\r\n", n, s);
+	cprintf("Players: %s %s\r\n", n, s);
 
 	chline(CONSOLE_WIDTH);
 }
@@ -110,14 +130,14 @@ void draw_paddles(unsigned int l_pad_pos, unsigned int r_pad_pos)
 	// Drawing left paddle
 	while (i < l_pad_pos + PADDLE_LENGTH)
 	{
-		draw_pixel(0, i);
+		draw_paddle_segment(0, i);
 		++i;
 	}
 
 	// Drawing right paddle
 	while (j < r_pad_pos + PADDLE_LENGTH)
 	{
-		draw_pixel(CONSOLE_WIDTH - 1, j);
+		draw_paddle_segment(CONSOLE_WIDTH - 1, j);
 		++j;
 	}
 }
@@ -133,33 +153,98 @@ void draw_h_line()
 	int i = 0;
 	while (i < CONSOLE_HEIGHT)
 	{
-		draw_pixel(CONSOLE_WIDTH / 2 - 1, i);
-		draw_pixel(CONSOLE_WIDTH / 2, i);
+		gotoxy(CONSOLE_WIDTH / 2 - 1, i);
+		cprintf("%c", 0x7E);
+		gotoxy(CONSOLE_WIDTH / 2, i);
+		cprintf("%c", 0x7F);
 		++i;
+	}
+}
+
+void update_ball_position(struct ball *b)
+{
+	switch (b->x_dir)
+	{
+	case LEFT:
+		(b->x)--;
+		break;
+	case RIGHT:
+		(b->x)++;
+		break;
+	}
+
+	wait_vblank();
+
+	switch (b->y_dir)
+	{
+	case UP:
+		(b->y)--;
+		break;
+	case DOWN:
+		(b->y)++;
+		break;
+	}
+}
+
+void bounce_ball(struct ball *b)
+{
+	if (b->y == 0 || b->y == CONSOLE_HEIGHT - 1)
+		b->y_dir = (b->y_dir == UP) ? DOWN : UP;
+}
+
+void update_score(struct ball *b, unsigned int* p_one_score, unsigned int* p_two_score)
+{
+	if (b->x == 0)
+	{
+		(*p_two_score)++;
+		b->x_dir = (b->x_dir == LEFT) ? RIGHT : LEFT;
+	}
+	else if (b->x == CONSOLE_WIDTH - 1)
+	{
+		(*p_one_score)++;
+		b->x_dir = (b->x_dir == LEFT) ? RIGHT : LEFT;
 	}
 }
 
 int main(void)
 {
-	char name[25];
-	char surname[25];
+	char player_one[25];
+	char player_two[25];
 	char start_answer[10];
 	int game_running = false;
 
+	unsigned int player_one_score = 0;
+	unsigned int player_two_score = 0;
+
 	unsigned int left_paddle_y = (CONSOLE_HEIGHT - PADDLE_LENGTH) / 2;
 	unsigned int right_paddle_y = (CONSOLE_HEIGHT - PADDLE_LENGTH) / 2;
+
+	struct ball ball;
+
 	unsigned int prev_left_y = left_paddle_y;
 	unsigned int prev_right_y = right_paddle_y;
+	unsigned int prev_ball_x;
+	unsigned int prev_ball_y;
+
+	// Instantiate the ball object
+	ball.x = CONSOLE_WIDTH / 2;
+	ball.y = CONSOLE_HEIGHT / 2;
+	ball.x_dir = LEFT;
+	ball.y_dir = DOWN;
+
+	prev_ball_x = ball.x;
+	prev_ball_y = ball.y;
+
 
 	CLS;
 
-    cprintf("Enter your name: "); cgets(name, 25);
-    cprintf("\rYour name is: %s\r\n", name);
+    cprintf("Enter player one: "); cgets(player_one, 25);
+    cprintf("\rPlayer 1: %s\r\n", player_one);
 
-    cprintf("Enter your surname: "); cgets(surname, 25);
-    cprintf("\rYour surname is: %s\r\n", surname);
+    cprintf("Enter player two: "); cgets(player_two, 25);
+    cprintf("\rPlayer 2s: %s\r\n", player_two);
 
-    render_top_bar(name, surname);
+    render_top_bar(player_one, player_two);
 
     cprintf("\r\n\r\n\r\n");
     print_game_start();
@@ -171,24 +256,53 @@ int main(void)
 
     if (strcmp(start_answer, "Yes") == 0)
     	game_running = true;
+    else
+    	__asm__("jmp ($e474)");
 
     CLS;
     draw_h_line();
 
     while (game_running)
     {
-    	update_paddle_positions(&left_paddle_y, &right_paddle_y);
+    	if (player_one_score >= MAX_POINTS || player_two_score >= MAX_POINTS)
+    		game_running = false;
 
+    	update_paddle_positions(&left_paddle_y, &right_paddle_y);
     	if (left_paddle_y != prev_left_y || right_paddle_y != prev_right_y)
     	{
     		wait_vblank();
+
     	    erase_paddles(prev_left_y, prev_right_y);
     	    draw_paddles(left_paddle_y, right_paddle_y);
 
     	    prev_left_y = left_paddle_y;
     	    prev_right_y = right_paddle_y;
     	}
+
+    	bounce_ball(&ball);
+    	update_ball_position(&ball);
+    	update_score(&ball, &player_one_score, &player_two_score);
+
+    	if (ball.x != prev_ball_x || ball.y != prev_ball_y)
+    	{
+    		wait_vblank();
+
+    		erase_pixel(prev_ball_x, prev_ball_y);
+    		draw_ball(ball.x, ball.y);
+
+    		prev_ball_x = ball.x;
+    		prev_ball_y = ball.y;
+    	}
     }
+
+    CLS;
+
+    if (player_one_score > player_two_score)
+    	cprintf("Player %s won with the score of: %d!", player_one, player_one_score);
+    else
+    	cprintf("Player %s won with the score of: %d!", player_one, player_two_score);
+
+    while(1);
 
     return 0;
 }
