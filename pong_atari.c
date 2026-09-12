@@ -19,9 +19,14 @@
 void draw_pixel(unsigned int x, unsigned int y)
 {
 	gotoxy(x, y);
-	cprintf("X");
+	cprintf("|");
 }
 
+void erase_pixel(unsigned int x, unsigned int y)
+{
+	gotoxy(x, y);
+	cprintf("%c", ' ');
+}
 
 void print_game_start()
 {
@@ -50,6 +55,24 @@ void render_top_bar(char *n, char *s)
 	chline(CONSOLE_WIDTH);
 }
 
+void erase_paddles(unsigned int l_pad_pos, unsigned int r_pad_pos)
+{
+	int i = l_pad_pos;
+	int j = r_pad_pos;
+
+	while (i < l_pad_pos + PADDLE_LENGTH)
+	{
+		erase_pixel(0, i);
+		++i;
+	}
+
+	while (j < r_pad_pos + PADDLE_LENGTH)
+	{
+		erase_pixel(CONSOLE_WIDTH - 1, j);
+		++j;
+	}
+}
+
 void update_paddle_positions(unsigned int* l_paddle, unsigned int* r_paddle)
 {
 	unsigned char last_key = OS.ch;
@@ -62,13 +85,20 @@ void update_paddle_positions(unsigned int* l_paddle, unsigned int* r_paddle)
 	    case L_PADDLE_DOWN:
 	    	if (*l_paddle < CONSOLE_HEIGHT - PADDLE_LENGTH) (*l_paddle)++;
 	    	break;
-	    case R_PADDLE_UP:
-	    	if (*r_paddle > 0) (*r_paddle)--;
-	    	break;
-	    case R_PADDLE_DOWN:
-	    	if (*r_paddle < CONSOLE_HEIGHT - PADDLE_LENGTH) (*r_paddle)++;
-	    	break;
 	}
+
+	last_key = OS.ch;
+
+	switch (last_key)
+	{
+		case R_PADDLE_UP:
+			if (*r_paddle > 0) (*r_paddle)--;
+			break;
+		case R_PADDLE_DOWN:
+			if (*r_paddle < CONSOLE_HEIGHT - PADDLE_LENGTH) (*r_paddle)++;
+			break;
+	}
+
 	OS.ch = 255;
 }
 
@@ -92,6 +122,23 @@ void draw_paddles(unsigned int l_pad_pos, unsigned int r_pad_pos)
 	}
 }
 
+void wait_vblank(void)
+{
+    unsigned char t = PEEK(0x14);
+    while (PEEK(0x14) == t);
+}
+
+void draw_h_line()
+{
+	int i = 0;
+	while (i < CONSOLE_HEIGHT)
+	{
+		draw_pixel(CONSOLE_WIDTH / 2 - 1, i);
+		draw_pixel(CONSOLE_WIDTH / 2, i);
+		++i;
+	}
+}
+
 int main(void)
 {
 	char name[25];
@@ -99,8 +146,10 @@ int main(void)
 	char start_answer[10];
 	int game_running = false;
 
-	unsigned int left_paddle_y = 0;
-	unsigned int right_paddle_y = 0;
+	unsigned int left_paddle_y = (CONSOLE_HEIGHT - PADDLE_LENGTH) / 2;
+	unsigned int right_paddle_y = (CONSOLE_HEIGHT - PADDLE_LENGTH) / 2;
+	unsigned int prev_left_y = left_paddle_y;
+	unsigned int prev_right_y = right_paddle_y;
 
 	CLS;
 
@@ -123,17 +172,22 @@ int main(void)
     if (strcmp(start_answer, "Yes") == 0)
     	game_running = true;
 
+    CLS;
+    draw_h_line();
+
     while (game_running)
     {
     	update_paddle_positions(&left_paddle_y, &right_paddle_y);
 
-    	// Drawing
+    	if (left_paddle_y != prev_left_y || right_paddle_y != prev_right_y)
+    	{
+    		wait_vblank();
+    	    erase_paddles(prev_left_y, prev_right_y);
+    	    draw_paddles(left_paddle_y, right_paddle_y);
 
-    	CLS;
-    	draw_paddles(left_paddle_y, right_paddle_y);
-
-    	// End Drawing
-
+    	    prev_left_y = left_paddle_y;
+    	    prev_right_y = right_paddle_y;
+    	}
     }
 
     return 0;
