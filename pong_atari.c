@@ -47,7 +47,7 @@ void draw_ball(unsigned int x, unsigned int y)
 void erase_pixel(unsigned int x, unsigned int y)
 {
 	gotoxy(x, y);
-	cprintf("%c", ' ');
+	cputc(' ');
 }
 
 void print_game_start()
