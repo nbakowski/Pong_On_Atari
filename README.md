@@ -2,6 +2,8 @@
 
 A simple two-player Pong game for Atari 8-bit systems, implemented in C and designed to run as a .xex executable on the platform.
 
+<img width="1456" height="991" alt="image" src="https://github.com/user-attachments/assets/08e1c306-53f4-4154-9ac0-624d2dd9f2df" />
+
 ## Overview
 
 This project recreates the classic arcade game Pong in a terminal-style console environment. Each player controls a paddle on opposite sides of the screen, and the ball bounces between them until one side reaches the winning score.
